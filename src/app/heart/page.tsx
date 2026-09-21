@@ -57,7 +57,7 @@ export default function Heart() {
   const [sort, setSort] = useState<string>('최근찜한순');
   const path = usePathname();
   const { user }: any = userStore();
-  const Token = user.token;
+  const Token = user?.token;
 
   const { data } = useQuery({
     queryKey: ['wishList'],
