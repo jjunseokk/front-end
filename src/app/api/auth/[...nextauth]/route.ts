@@ -1,32 +1,24 @@
-import NextAuth from "next-auth";
-import KakaoProvider from "next-auth/providers/kakao";
-
-
-
+import NextAuth from 'next-auth';
+import KakaoProvider from 'next-auth/providers/kakao';
 
 const handler = NextAuth({
-
-    session: {
-        strategy: "jwt",
+  secret: process.env.NEXTAUTH_SECRET,
+  session: { strategy: 'jwt', maxAge: 60 * 60 },
+  providers: [
+    KakaoProvider({
+      authorization: { params: { scope: 'profile_nickname,account_email' } },
+      clientId: process.env.KAKAO_CLIENT_ID || '',
+      clientSecret: process.env.KAKAO_CLIENT_SECRET || '',
+    }),
+  ],
+  callbacks: {
+    async jwt({ token, account }) {
+      if (account?.provider === 'kakao') {
+        token.kakaoAccessToken = account.access_token;
+        token.kakaoExpiresAt = account.expires_at;
+      }
+      return token;
     },
-    jwt: {
-        secret: "secret",
-    },
-    providers: [
-        KakaoProvider({
-            clientId: process.env.KAKAO_CLIENT_ID || "",
-            clientSecret: process.env.KAKAO_CLIENT_SECRET || "",
-        }),
-    ],
-    callbacks: {
-        async jwt({ token, account }) {
-            // Persist the OAuth access_token to the token right after signin
-            if (account) {
-                token.accessToken = account.access_token;
-            }
-            return token;
-        },
-    },
+  },
 });
-
 export { handler as GET, handler as POST };

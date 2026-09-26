@@ -1,6 +1,7 @@
 'use client';
 
 import './Write.scss';
+import { useRouter, useSearchParams } from 'next/navigation';
 import React, { useRef, useState } from 'react';
 import Header from '../Header/Header';
 import useInput from '@/hooks/useInput';
@@ -12,6 +13,8 @@ import userStore from '@/store/userInformation';
 import { useMutation } from '@tanstack/react-query';
 
 export default function Write({ params }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [title, setTitle, titleChange] = useInput();
   const [content, setContent] = useState<string>('');
   const [sendAsk, setSendAsk] = useState<boolean>(false);
@@ -27,6 +30,9 @@ export default function Write({ params }) {
 
   const sendInquiresMutation = useMutation({
     mutationFn: (inquiryRequest: IInquiry) => inquiries(inquiryRequest, Token),
+    onSuccess: (res) => {
+      setSendAsk(true);
+    },
   });
 
   const sendWriteAsk = (bool: boolean) => {
@@ -38,7 +44,13 @@ export default function Write({ params }) {
     };
 
     sendInquiresMutation.mutate(inquiry);
-    setSendAsk(bool);
+  };
+
+  const successInquiry = () => {
+    setSendAsk(false);
+    const category = searchParams.get('category');
+    const query = category ? `?${new URLSearchParams({ category })}` : '';
+    router.push(`/productsDetail/${params.itemId}${query}`);
   };
 
   return (
@@ -69,7 +81,7 @@ export default function Write({ params }) {
         <div className="sendCheckBox">
           <div>
             <h1>문의작성이 완료되었어요!</h1>
-            <button onClick={() => sendWriteAsk(false)}>확인</button>
+            <button onClick={successInquiry}>확인</button>
           </div>
         </div>
       )}

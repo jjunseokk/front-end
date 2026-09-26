@@ -23,16 +23,17 @@ import userAddress from '@/store/userAddress';
 import { IOrder } from '@/types/common';
 
 type queryData = {
-  itemId: number;
+  id: number;
   img: string;
-  amount: number;
   price: number;
+  quantity:number;
   itemName: string;
   categoryName: string;
 }[];
 
 type coupon = {
-  discount: number;
+  couponStrategy: 'PERCENTAGE' | 'ABSOLUTE';
+  value: number;
   text: string;
   couponId: number;
 }[];
@@ -73,15 +74,28 @@ const Order = () => {
     queryFn: () => getCouponList(Token),
   });
 
-  const payment = getUrl?.map((value) => value.price);
   const items = getUrl?.map((value) => ({
-    itemId: value.itemId,
-    quantity: value.amount,
+    itemId: value.id,
+    quantity: value.quantity,
   }));
+  const totalAmount = getUrl?.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0,
+  ) ?? 0;
 
-  const totalAmount = payment?.reduce(function add(sum, currValue) {
-    return sum + currValue;
-  }, 0);
+  const selectedCoupon = getCoupon[0];
+  const discountAmount = !selectedCoupon
+    ? 0
+    : Math.min(
+        totalAmount,
+        selectedCoupon.couponStrategy === 'PERCENTAGE'
+          ? Math.floor((totalAmount * selectedCoupon.value) / 100)
+          : selectedCoupon.value,
+      );
+  // 서버의 totalPrice는 배송비를 제외한 상품 금액입니다.
+  const totalPrice = totalAmount - discountAmount;
+  const deliveryFee = totalPrice >= 100000 ? 0 : 3000;
+  const paymentAmount = totalPrice + deliveryFee;
 
   const handleContent = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (e.target.value.length > 50) return;
@@ -98,11 +112,7 @@ const Order = () => {
         : `${address.address}, ${address.detailAddress}`,
     recipient: address.length === 0 ? recipient : address.recipient,
     couponId: couponId.length === 0 ? null : Number(couponId),
-    totalPrice:
-      totalAmount -
-      (getCoupon.length == 0
-        ? 0
-        : Math.floor(totalAmount * getCoupon[0].discount)),
+    totalPrice,
     orderItems: items,
   };
 
@@ -267,10 +277,10 @@ const Order = () => {
           {showOrderedItem == true
             ? getUrl?.map((value, index) => {
                 return (
-                  <div key={value.itemId} className="ordered_item">
+                  <div key={value.id} className="ordered_item">
                     <div>
                       <p>{value.itemName}</p>
-                      <p>수량 {value.amount}개</p>
+                      <p>수량 {value.quantity}개</p>
                     </div>
                   </div>
                 );
@@ -287,29 +297,19 @@ const Order = () => {
           </div>
           <div>
             <p>배송비</p>
-            <p>{(totalAmount >= 100000 ? 0 : 3000).toLocaleString()} 원</p>
+            <p>{deliveryFee.toLocaleString()} 원</p>
           </div>
           <div>
             <p>쿠폰할인</p>
             <p>
-              {getCoupon.length == 0
-                ? 0
-                : Math.floor(
-                    totalAmount * getCoupon[0].discount,
-                  ).toLocaleString()}
+              {discountAmount.toLocaleString()}
               원
             </p>
           </div>
           <div>
             <p>총 결제 금액</p>
             <p>
-              {(
-                totalAmount +
-                (totalAmount >= 100000 ? 0 : 3000) -
-                (getCoupon.length == 0
-                  ? 0
-                  : Math.floor(totalAmount * getCoupon[0].discount))
-              ).toLocaleString()}
+              {paymentAmount.toLocaleString()}
               원
             </p>
           </div>
@@ -483,7 +483,8 @@ const Order = () => {
                   onClick={() => {
                     setGetCoupon([
                       {
-                        discount: value.value / 100,
+                        couponStrategy: value.couponStrategy,
+                        value: value.value,
                         text: value.name,
                         couponId: value.id,
                       },

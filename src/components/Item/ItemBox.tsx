@@ -8,14 +8,15 @@ import on_heart from '../../../public/on-heart.svg';
 import scoreStar from '../../../public/score-star.svg';
 import heart_cart from '../../../public/heart_cart.svg';
 import './ItemBox.scss';
-import { useMutation } from '@tanstack/react-query';
-import { addWishItem } from '@/util/AxiosMember';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { addWishItem, removeWishItem } from '@/util/AxiosMember';
 import userStore from '@/store/userInformation';
 import { IWish } from '@/types/common';
 
 interface Data {
   id: number;
   itemId: number;
+  categoryId: number;
   categoryName: string;
   name: string;
   price: number;
@@ -32,9 +33,15 @@ interface Props {
 }
 
 export default function ItemBox({ data, page, number }: Props) {
-  const [onHeart, setOnHeart] = useState<boolean>(false);
+  const [onHeart, setOnHeart] = useState<boolean>(
+    page === 'heart' || !!data?.inWishList,
+  );
   const { user }: any = userStore();
   const Token = user?.token;
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    setOnHeart(page === 'heart' || !!data?.inWishList);
+  }, [data?.inWishList, page]);
 
   const router = useRouter();
 
@@ -44,23 +51,34 @@ export default function ItemBox({ data, page, number }: Props) {
     path = location.pathname.split('/');
   }
 
-  const returnWish = (wish: IWish) => {
-    return addWishItem(wish, Token);
-  };
-
   const addMutation = useMutation({
-    mutationFn: (wish: IWish) => returnWish(wish),
-    onSuccess: (res) => {
-      console.log(res);
+    mutationFn: ({ itemId, wished }: { itemId: number; wished: boolean }) =>
+      wished ? removeWishItem(itemId, Token) : addWishItem({ itemId }, Token),
+    onSuccess: async (_res, { wished }) => {
+      setOnHeart(!wished);
+      await queryClient.invalidateQueries({
+        predicate: (query) =>
+          [
+            'getWineList',
+            'getPlacesOfCategory',
+            'similar',
+            'popularCategory',
+            'wishList',
+          ].includes(String(query.queryKey[0])),
+      });
     },
-    onError: (error) => {
-      console.log(error);
+    onError: () => {
+      window.alert('찜 변경에 실패했습니다. 로그인 상태를 확인해 주세요.');
     },
   });
 
   const clickHeart = (id: number) => {
-    addMutation.mutate({ itemId: id }, Token);
-    setOnHeart(!onHeart);
+    if (!Token) {
+      window.alert('로그인이 필요합니다.');
+      return;
+    }
+    if (addMutation.isPending || !id) return;
+    addMutation.mutate({ itemId: id, wished: onHeart });
   };
 
   let category;
@@ -95,7 +113,9 @@ export default function ItemBox({ data, page, number }: Props) {
             <div
               className="box"
               onClick={() => {
-                router.push(`/productsDetail/${data?.id}?category=${path[2]}`);
+                router.push(
+                  `/productsDetail/${data?.id}?category=${data?.categoryId}`,
+                );
               }}
             >
               <div className="itemBox-main-img">
@@ -123,7 +143,7 @@ export default function ItemBox({ data, page, number }: Props) {
               <Image
                 onClick={() => clickHeart(data?.id)}
                 className="itemBox-heart"
-                src={data?.inWishList ? on_heart : heart}
+                src={onHeart ? on_heart : heart}
                 alt="heart"
               />
             </div>
@@ -138,7 +158,7 @@ export default function ItemBox({ data, page, number }: Props) {
                 clickHeart(data?.id === undefined ? data?.itemId : data?.id)
               }
               className="itemBox-heart"
-              src={data?.inWishList ? on_heart : heart}
+              src={onHeart ? on_heart : heart}
               alt="heart"
             />
           )}
@@ -167,13 +187,14 @@ export default function ItemBox({ data, page, number }: Props) {
                     alt="red wine image"
                   />
                   <Image
-                    onClick={() =>
+                    onClick={(event) => {
+                      event.stopPropagation();
                       clickHeart(
                         data?.id === undefined ? data?.itemId : data?.id,
-                      )
-                    }
+                      );
+                    }}
                     className="itemBox-heart"
-                    src={data?.inWishList ? on_heart : heart}
+                    src={onHeart ? on_heart : heart}
                     alt="heart"
                   />
                 </>
