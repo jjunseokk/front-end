@@ -109,12 +109,12 @@ export default function Login() {
             <Image
               src={kakaoBtn}
               onClick={() => {
-                signIn('kakao');
+                signIn('kakao', { callbackUrl: '/auth/kakao' });
               }}
               alt="kakao"
             />
-            <Image src={naverBtn} alt="naver" />
-            <Image src={googleBtn} alt="google" />
+            {/* <Image src={naverBtn} alt="naver" /> */}
+            {/* <Image src={googleBtn} alt="google" /> */}
           </div>
         </div>
       </div>

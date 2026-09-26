@@ -17,14 +17,32 @@ export default function ProductDetailReview() {
   const { user }: any = userStore();
   const Token = user?.token;
   const { itemId } = useParams();
-  const [page, setPage] = useState<number>(1);
+  const [page, setPage] = useState<number>(0);
   const [size, setSize] = useState<number>(10);
+  const [expandedReviews, setExpandedReviews] = useState<Record<string, boolean>>({});
 
   const { data, status } = useQuery({
     queryKey: ['review', Token],
     queryFn: () => readReview(Number(itemId), Token, page, size),
     enabled: !!Token,
   });
+
+  console.log(data);
+
+  const reviews = (Array.isArray(data) ? data : []).map((item) => ({
+    ...item,
+    imageUrls: Array.isArray(item.imageUrls)
+      ? item.imageUrls
+          .filter(
+            (image) =>
+              typeof image?.imageUrl === 'string' &&
+              image.imageUrl.trim().length > 0,
+          )
+          .sort((a, b) => a.order - b.order)
+          .map((image) => image.imageUrl)
+      : [],
+  }));
+  const photoReviews = reviews.filter((item) => item.imageUrls.length > 0);
 
   const dropdownRef = useRef(null);
   const [isReviewToggle, setIsReviewToggle] = useState<boolean>(false);
@@ -62,33 +80,34 @@ export default function ProductDetailReview() {
         <div>
           <h1>사진 후기</h1>
           <div>
-            {data?.length > 4
-              ? data?.map((item, index) => {
-                  if (index >= 4) return;
-                  if (index === 3) {
-                    return (
-                      <div key={item.id} className="addReview">
-                        <Image src={item.img} alt="review-picture" />
-                        <div>+ 더보기</div>
-                      </div>
-                    );
-                  }
-                  return (
-                    <Image key={item.id} src={item.img} alt="review-picture" />
-                  );
-                })
-              : data?.map((item) => {
-                  return (
-                    <Image key={item.id} src={item.img} alt="review-picture" />
-                  );
-                })}
+            {photoReviews.slice(0, 4).map((item, index) => {
+              const picture = (
+                <Image
+                  key={item.id}
+                  src={item.imageUrls[0]}
+                  alt="리뷰 사진"
+                  width={84}
+                  height={83}
+                  style={{ objectFit: 'cover' }}
+                />
+              );
+
+              return index === 3 && photoReviews.length > 4 ? (
+                <div key={item.id} className="addReview">
+                  {picture}
+                  <div>+ 더보기</div>
+                </div>
+              ) : (
+                picture
+              );
+            })}
           </div>
         </div>
       </div>
 
       <div className="ProductDetailReview-comments">
         <div className="length-sort">
-          <div className='count_review'>총 0개</div>
+          <div className="count_review">총 {reviews.length}개</div>
           <div
             className="sort"
             onClick={() => setIsReviewToggle((pre) => !pre)}
@@ -121,31 +140,56 @@ export default function ProductDetailReview() {
             </div>
           )}
         </div>
-        {data?.map((item) => {
+        {reviews.map((item) => {
           return (
             <div key={item.id} className="ProductDetailReview-comment">
               <div>
                 <Image src={reviewPicture} alt="profile" />
-                <p>
-                  {item.name}/{item.nickname}
-                </p>
+                <p>{item.nickname}</p>
               </div>
               <div>
                 <div className="comment-score">
-                  {item.score.map((star) => {
-                    if (star === 1) {
-                      return <Image src={fillReviewScore} alt="score" />;
-                    } else {
-                      return <Image src={reviewScore} alt="score" />;
-                    }
-                  })}
+                  {Array.from({ length: 5 }, (_, index) => (
+                    <Image
+                      key={index}
+                      src={index < item.rating ? fillReviewScore : reviewScore}
+                      alt={index < item.rating ? '채워진 별' : '빈 별'}
+                    />
+                  ))}
                 </div>
                 <div className="comment-review">
-                  {item.comment}
+                  {item.content}
 
-                  {item.commentImg ? (
-                    <Image src={item.commentImg} alt="comment-img" />
-                  ) : null}
+                  {item.imageUrls.length > 0 && (
+                    <div className="comment-review-picture">
+                      {item.imageUrls
+                        .slice(0, expandedReviews[item.id] ? undefined : 2)
+                        .map((imageUrl, index) => (
+                          <div className="review-photo" key={`${item.id}-${index}`}>
+                            <Image src={imageUrl} alt={`리뷰 사진 ${index + 1}`}
+                              width={83} height={83} style={{ objectFit: 'cover' }} />
+                            {index === 1 && item.imageUrls.length > 2 && !expandedReviews[item.id] && (
+                              <button type="button" className="review-photo-more"
+                                aria-expanded={false}
+                                aria-label={`리뷰 사진 ${item.imageUrls.length - 2}장 더보기`}
+                                onClick={() => setExpandedReviews((previous) => ({
+                                  ...previous, [item.id]: true,
+                                }))}>
+                                + 더보기
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      {expandedReviews[item.id] && item.imageUrls.length > 2 && (
+                        <button className="review-photo-skip" type="button" aria-expanded={true}
+                          onClick={() => setExpandedReviews((previous) => ({
+                            ...previous, [item.id]: false,
+                          }))}>
+                          - 접기
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <span>{item.date}</span>
               </div>

@@ -44,7 +44,9 @@ export default function ProductsDetail({ params }: Props) {
     queryFn: () => getDetail(params.itemId),
   });
 
-  const navList = ['상품정보', '리뷰24', '문의', '교환/반품'];
+  const navList = ['상품정보', '리뷰', '문의', '교환/반품'];
+
+  console.log(currentInform)
 
   return (
     <main className="detail">

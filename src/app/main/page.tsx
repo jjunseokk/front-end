@@ -26,6 +26,8 @@ import CollectionBox from '@/components/CollectionBox/CollectionBox';
 import event_1 from '../../../public/event_1.svg';
 import event_2 from '../../../public/event_2.svg';
 import userStore from '@/store/userInformation';
+import { getWineList } from '@/util/AxiosItem';
+import { useQuery } from '@tanstack/react-query';
 
 const testCategory: { img: string; name: string; id: number }[] = [
   { img: RED, name: '레드 와인', id: 1 },
@@ -53,7 +55,13 @@ export default function Main() {
   const router = useRouter();
   const path = usePathname();
 
-  const { setUser } = userStore();
+  const { setUser, user } = userStore();
+  const token = (user as unknown as { token?: string } | null)?.token;
+
+  const { data } = useQuery({
+    queryKey: ['getWineList', token],
+    queryFn: () => getWineList(),
+  });
 
   useEffect(() => {
     const userInformation = JSON.parse(window.localStorage.getItem('token'));
@@ -109,9 +117,11 @@ export default function Main() {
             </p>
           </div>
           <div className="bestSeller-item">
-            <ItemBox page="main" number={1} />
-            <ItemBox page="main" number={2} />
-            <ItemBox page="main" number={3} />
+            {data?.data?.itemSummaryResponseList.slice(0, 3).map((item)=>{
+              return (
+                <ItemBox page="main" number={item.id} data={item} key={item.id} />
+              )
+            })}
           </div>
         </div>
         <div className="main-collection">

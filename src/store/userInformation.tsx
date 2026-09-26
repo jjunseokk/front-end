@@ -5,7 +5,7 @@ import { userState } from '@/types/storeType';
 const userStore = create(
   persist<userState>(
     (set) => ({
-      user: [],
+      user: null,
       setUser: (user) => set({ user }),
     }),
     {

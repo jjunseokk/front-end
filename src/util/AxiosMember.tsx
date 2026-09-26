@@ -57,6 +57,12 @@ const addWishItem = (wish: IWish, Token: string) => {
   }).then((res) => res);
 };
 
+export const removeWishItem = (itemId: number, Token: string) =>
+  AxiosConfig.delete('/members/wish-item', {
+    params: { itemId },
+    headers: { Authorization: `Bearer ${Token}` },
+  });
+
 // 찜목록
 const getWishList = (Token: string) => {
   return AxiosConfig.get('/members/wish-item', {
